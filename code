@@ -1,0 +1,146 @@
+-- title:  game title
+-- author: game developer
+-- desc:   short description
+-- script: lua
+p={x=15,y=58,s='walk',t=0.01}
+t=0
+score=2000
+logs={}
+logs[1]={0,120}
+logs[2]={1,136}
+
+function render()
+ render_back()
+	render_objects()
+	render_enemies()
+	render_p()
+	render_forground()
+	render_score()
+end
+
+function render_back()
+	rect(0,60,240,15,5)
+	rect(0,75,240,15,3)
+	rect(0,0,240,60,11)
+	rect(30,0,15,60,2)
+	rect(150,0,15,60,2)
+	circ(37,0,15,6)
+	circ(157,0,23,6)
+	circ(10,-3,20,6)
+	circ(90,-25,50,6)
+	circ(130,5,13,6)
+	circ(188,5,14,6)
+	circ(220,-18,34,6)
+	rect(0,0,240,11,6)
+	rect(0,130,240,6,3)
+end
+
+function render_objects()
+
+end
+
+function render_enemies()
+   for log,x in pairs(logs) do
+			   if x[2]%16>8 then
+					    --rect(x[2],68,5,5,4)
+						   spr(2,x[2],60,0,1,0,0,1,2)
+						else
+						   --rect(x[2],68,5,5,5)
+						   spr(2,x[2],61,0,1,1,0,1,2)
+						end
+			end
+end
+
+function render_p()
+   --rect(p.x,p.y,5,5,3)
+			spr(1,p.x,p.y,0,1,0,0,1,2)
+end
+
+function render_forground()
+
+end
+
+function render_score()
+   print(score,40,2,12,true,2)
+			clock=1200-math.floor(time()/1000)
+			if clock%60<10 then
+						print(tostring(clock//60)..":0"..tostring(clock%60)
+									      ,40,18,12,true,2)
+			else
+						print(tostring(clock//60)..":"..tostring(clock%60)
+						      ,40,18,12,true,2)
+			end
+end
+
+function collision()
+   if p.s=='stuck' or p.s=='ground' then
+			   p.s='walk'
+			end
+   for log,x in pairs(logs) do
+      if p.x>=x[2]-6 and p.x<=x[2]+6 and p.y>57 then
+						   score=score-4
+									if x[1]==1 then
+									   p.s='stuck'
+									elseif x[1]==0 then
+												p.s='ground'
+									end
+						end
+			end
+end
+
+function step()
+			--((vi*t)+(a*(t^2))/2)+68
+   if p.s=='up' or p.s=='upright' or p.s=='upleft'then
+			   p.y=(58-(15*p.t+(-6*p.t^2)/2))//1
+						p.t=p.t+0.11-(38/p.y)/100
+						if p.y>=58 then p.y=58 p.t=0.01 p.s='walk'	end
+			end
+		 if p.s=='upright' then
+						p.x=p.x+1
+			elseif p.s=='upleft' then
+						p.x=p.x-1
+			end
+			
+			if t%1==0 then
+						for log,x in pairs(logs) do
+						   if x[1]==1 then
+									   logs[log][2]=x[2]-1
+												if x[2]<=-8 then logs[log]={1,240} end
+									end
+						end
+			end
+end
+
+function input()
+   if p.s=='walk' then
+			   if btn(2) then
+						   p.x=p.x-1
+									if keyp(48) then
+						      p.s='upleft'
+									end
+						elseif btn(3) then
+						   p.x=p.x+1
+									if keyp(48) then
+						      p.s='upright'
+									end
+						elseif keyp(48) then
+						   p.s='up'
+						end
+			elseif p.s=='ground' then
+			   if btn(2) then
+						   p.x=p.x-1
+						elseif btn(3) then
+						   p.x=p.x+1
+						end
+			end
+end
+
+function TIC()
+	cls(13)
+	t=t+1
+	render()
+	collision()
+	step()
+	input()
+	
+end
