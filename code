@@ -4,6 +4,7 @@
 -- script: lua
 p={x=15,y=58,s='walk',t=0.01}
 t=0
+score=2000
 logs={}
 logs[1]={0,120}
 logs[2]={1,136}
@@ -15,6 +16,7 @@ function render()
 	render_enemies()
 	render_p()
 	render_forground()
+	render_score()
 end
 
 function render_back()
@@ -74,8 +76,33 @@ function render_forground()
 	end
 end
 
+function render_score()
+   print(score,40,2,12,true,2)
+			clock=1200-math.floor(time()/1000)
+			if clock%60<10 then
+						print(tostring(clock//60)..":0"..tostring(clock%60)
+									      ,40,18,12,true,2)
+			else
+						print(tostring(clock//60)..":"..tostring(clock%60)
+						      ,40,18,12,true,2)
+			end
+end
+
 function collision()
-	if lake == true then
+   if p.s=='stuck' or p.s=='ground' then
+			   p.s='walk'
+			end
+   for log,x in pairs(logs) do
+      if p.x>=x[2]-6 and p.x<=x[2]+6 and p.y>57 then
+						   score=score-4
+									if x[1]==1 then
+									   p.s='stuck'
+									elseif x[1]==0 then
+												p.s='ground'
+									end
+						end
+			end
+  if lake == true then
 		if ((p.x>60) and (p.x<100)) and (p.y==58) then
 			p={x=15,y=58,s='walk',t=0.01}
 			render_p()
@@ -121,15 +148,19 @@ function input()
 						elseif keyp(48) then
 						   p.s='up'
 						end
+			elseif p.s=='ground' then
+			   if btn(2) then
+						   p.x=p.x-1
+						elseif btn(3) then
+						   p.x=p.x+1
+						end
 			end
 end
 
 function TIC()
-	cls()
+	cls(13)
 	t=t+1
 	render()
---	print(p.y,0,0,3)
---	print(p.x,0,10,3)
 	collision()
 	step()
 	input()
