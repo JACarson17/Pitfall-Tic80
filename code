@@ -2,15 +2,40 @@
 -- author: game developer
 -- desc:   short description
 -- script: lua
-FLOOR=81 SPEED=0.7 TUNNEL=112
 
-p={x=15,y=FLOOR,s='walk',floor=FLOOR,v=0}
+--The y cordinate of the above ground
+FLOOR=81
+--The y cordinate of the below ground
+TUNNEL=112 
+--Change this number to change player's speed
+SPEED=0.7
+--player: x,y cords, s is state,
+--        v is vertical velocity (positive is up)
+p={x=15,y=FLOOR,s='walk',v=0}
+--Number of TICs
 t=0
+--The score of the player
 score=2000
-screen=4
+--Which screen the player is on
+--from 0-63
+screen=0
+--Number of lives the player has
 lives=2
+--A table that will store log objects
 logs={}
 
+--Calculates the map tile number of the
+--left column (0,y) of the current screen
+function screen_x()
+   return (screen%8)*30
+end
+--Calculates the map tile number of the
+--top row (x,0) of the current screen
+function screen_y()
+   return (screen//8)*17
+end
+
+--A redirection function for rendering
 function render()
    render_back()
    render_p()
@@ -18,37 +43,20 @@ function render()
    render_enemies()
    render_score()
 end
-
-function screen_x()
-   return (screen%8)*30
-end
-
-function screen_y()
-   return (screen//8)*17
-end
-
+--Renders the current map
 function render_back()
    map(screen_x(),screen_y(),30,17,0,0)
 end
-
-function render_enemies()
-   for log,x in pairs(logs) do
-      if x[2]%16>8 then
-         spr(2,x[2],88,0,1,0,0,1,2)
-      else
-         spr(2,x[2],89,0,1,1,0,1,2)
-      end
-   end
-end
-
+--Renders player sprite
 function render_p()
    spr(1,p.x,p.y,0,1,0,0,1,2)
 end
-
+--Renders objects that look like they
+--are part of the map
 function render_forground()
 --Lower Ground
    rect(0,98,240,6,3)
-	
+--Bottom half of lakes	
    if mget(screen_x()+1,screen_y()+4)~=0 then
       spr(7,56,FLOOR+15,0,1,2)
       spr(8,64,FLOOR+15,0,1,2)
@@ -67,8 +75,21 @@ function render_forground()
       spr(8,168,FLOOR+15,0,1,2)
       spr(12,176,FLOOR+15,0,1,2)
    end
-	
-   if mget(screen_x()+9,screen_y()+4)~=0 then
+--Tree Cover
+   rect(0,0,240,40,6)
+end
+--Renders enemey sprites
+function render_enemies()
+--Renders Logs
+   for log,x in pairs(logs) do
+      if x[2]%16>8 then
+         spr(2,x[2],88,0,1,0,0,1,2)
+      else
+         spr(2,x[2],89,0,1,1,0,1,2)
+      end
+   end
+--Renders Gators	
+			if mget(screen_x()+9,screen_y()+4)~=0 then
       if t%250<125 then
          spr(4,80,FLOOR+8,0)
          spr(4,116,FLOOR+8,0)
@@ -79,19 +100,19 @@ function render_forground()
          spr(5,152,FLOOR+8,0)
       end
    end
---Tree Cover
-   rect(0,0,240,40,6)
 end
-
+--Renders Score, Time, and Lives
 function render_score()
+--Score
    print(score,40,2,12,true,2)
+--Clock
    clock=1200-math.floor(time()/1000)
    if clock%60<10 then
       print(tostring(clock//60)..":0"..tostring(clock%60),40,18,12,true,2)
    else
       print(tostring(clock//60)..":"..tostring(clock%60),40,18,12,true,2)
    end
-			
+--Lives
    if lives>0 then
       line(28,18,28,28,12)
    end
@@ -103,24 +124,27 @@ function render_score()
 --print(p.y,200,12)
 end
 
+--Resolves player collision with passable objects
 function collision()
+--Collision with logs
    if p.s=='stuck' or p.s=='ground' then
       p.s='walk'
    end
    for log,x in pairs(logs) do
       if p.x>=x[2]-4 and p.x<=x[2]+8 and p.y>FLOOR-1 then
          score=score-4
+							--1 is moving logs. Player cannot move while stuck
          if x[1]==1 then
             p.s='stuck'
+							--0 is stationary logs. Player cannot jump while grounded
          elseif x[1]==0 then
             p.s='ground'
          end
       end
    end
-		
+--Collision with lake
    if mget(screen_x()+1,screen_y()+4)~=0
      and p.x>56 and p.x<176 then
-   --x:56-176 -G1:80-88 -G2:116-124 -G3:152-160
       if p.y>FLOOR and ground()==89 then
          p.s='stuck'
          p.y=p.y+1
@@ -134,7 +158,8 @@ function collision()
          end
       end
     end
-		
+--Collision with pits. Fall is like stuck, but the player
+--moves downwards		
    if p.y<=FLOOR and p.y>=FLOOR-1 and
      (mget((p.x/8)+screen_x(),screen_y()+2)==14 or
       mget((p.x/8)+screen_x(),screen_y()+2)==30 or
@@ -148,25 +173,27 @@ function collision()
 	
 end
 
+
+
+--returns the y value of the nearest ground below the player
 function ground()
---returns the value of the nearest ground below the player
---pool:56-176 -G1:80-88 -G2:116-124 -G3:152-160
---Above pool with pool
+--pool:56-176  G1:80-88  G2:116-124  G3:152-160
+---If Above pool with pool
    if mget(screen_x()+1,screen_y()+4)~=0 
      and (p.y<=FLOOR+8)
      and p.x>=56 and p.x<=176 then
-      ---if Gators
+   ---if Gators
       if mget(screen_x()+9,screen_y()+4)~=0 then
-         --if above Gators
+       --if above Gators
          if ((p.x>=76) and (p.x<=86)) or
             ((p.x>=112) and (p.x<=122)) or
             ((p.x>=148) and (p.x<=158)) then
-            --if above Gator eyes
+          --if above Gator eyes
             if (p.x>84 and p.x<=86) or
                (p.x>120 and p.x<=122) or
                (p.x>156 and p.x<=158) then
                return FLOOR-3
-            --else if Gator mouths open
+          --else if Gator mouth's open
             elseif t%250<125 then
                return FLOOR+8
             else
@@ -178,34 +205,57 @@ function ground()
       else
          return FLOOR+8
       end
+	--elseif player in tunnel
    elseif p.s=='fall' or p.y>FLOOR+8 then
       return TUNNEL
    else
       return FLOOR
    end
 end
-
+--Takes either 1 (check right) or -1 (check left)
+--Returns false if there is a wall there, or true if not
+function wall(dir)
+   if ground()==TUNNEL and dir==-1
+     and mget((p.x-1)//8+screen_x(),screen_y()+13)==36 then
+      return false
+   elseif ground()==TUNNEL and dir==1
+     and mget((p.x+6)//8+screen_x(),screen_y()+13)==36 then
+      return false
+   end
+   return true
+end
+--Manages the physics of entities every TIC
 function physics()
-
+--Gravity physics
+ --if player state is fall, 
+	--do no other physics besides moving them down
    if p.s=='fall' then
       p.y=p.y+1
    else
+			local temp_ground=ground()
+			 --move player's y by a percent
+				--of their vertical velocity
       p.y=p.y-(p.v/10)
-      if p.y>ground() then 
+				--if player is below ground (ie. touching ground)
+      if p.y>temp_ground then
+						 --apply an equal and opposite force
          p.y=p.y+(p.v/10)
+							--increase velocity by gravity
          p.v=p.v+(5/10)
          if p.s~='fall' then p.s='walk'	end
       end
+						--decrease velocity by gravity
       p.v=p.v-(5/10)
+				--Max to player downward velocity
       if p.v<-16 then p.v=-16 end
-   end
-			
+   end	
+ --Jumping continues movement
    if p.s=='upright' and wall(1) then
       p.x=p.x+SPEED
    elseif p.s=='upleft' and wall(-1) then
       p.x=p.x-SPEED
    end
-			
+--Changing Screens			
    if p.x>234 then
       p.x=4
       if ground()==TUNNEL then
@@ -223,7 +273,7 @@ function physics()
       if screen<0 then screen=63 end
       load_screen()
    end
-			
+--Moves logs			
    if t%1==0 then
       for log,x in pairs(logs) do
          if x[1]==1 then
@@ -234,18 +284,11 @@ function physics()
    end
 end
 
-function wall(dir)
-   if ground()==TUNNEL and dir==-1
-     and mget((p.x-1)//8+screen_x(),screen_y()+13)==36 then
-      return false
-   elseif ground()==TUNNEL and dir==1
-     and mget((p.x+6)//8+screen_x(),screen_y()+13)==36 then
-      return false
-   end
-   return true
-end
 
+--Takes the input of the player, and
+--based on player state, moves the player
 function input()
+ --walk alows left right, and jumping
    if p.s=='walk' then
       if btn(2) then
          if wall(-1) then p.x=p.x-SPEED end
@@ -263,6 +306,7 @@ function input()
          p.s='up'
          p.v=10
       end
+ --ground allows just jumping
    elseif p.s=='ground' then
       if btn(2) and wall(-1) then
          p.x=p.x-SPEED
@@ -272,7 +316,11 @@ function input()
    end
 end
 
+
+--When a screen is changed, loads all the data
+--from the top hidden section of the map
 function load_screen()
+ --reset logs, then put logs into logs{}
    logs={}
    for i=1,29 do
       if mget(i+screen_x(),screen_y()+1)==2 then
@@ -280,24 +328,27 @@ function load_screen()
       elseif mget(i+screen_x(),screen_y()+1)==18 then
          table.insert(logs, {0,i*8})
       end
+				--load pits
       pitwalllad=mget(i+screen_x(),screen_y()+2)
       if pitwalllad==14 or
         pitwalllad==30 then
          mset(i+screen_x(),screen_y()+11,14)
          mset(i+screen_x(),screen_y()+12,30)
+				--load ladders
       elseif pitwalllad==37 then
          mset(i+screen_x(),screen_y()+11,14)
          mset(i+screen_x(),screen_y()+12,30)
          mset(i+screen_x(),screen_y()+13,37)
          mset(i+screen_x(),screen_y()+14,37)
          mset(i+screen_x(),screen_y()+15,37)
+				--load walls
       elseif pitwalllad==36 then
          mset(i+screen_x(),screen_y()+13,36)
          mset(i+screen_x(),screen_y()+14,36)
          mset(i+screen_x(),screen_y()+15,36)
       end
    end
-   
+ --load lake if not already loaded   
    if mget(screen_x()+1,screen_y()+4)~=0 
      and mget(screen_x()+9,screen_y()+11)~=8 then
       mset(screen_x()+7,screen_y()+11,7)
@@ -319,6 +370,7 @@ function load_screen()
    end
 end
 
+--the first screen shown is loaded before the game begins
 load_screen()
 function TIC()
    cls(0)
