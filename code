@@ -24,6 +24,8 @@ lives=2
 --A table that will store log objects
 logs={}
 
+ladderPos = -1
+
 --Calculates the map tile number of the
 --left column (0,y) of the current screen
 function screen_x()
@@ -56,7 +58,7 @@ end
 function render_forground()
 --Lower Ground
    rect(0,98,240,6,3)
---Bottom half of lakes	
+--Bottom half of lakes  
    if mget(screen_x()+1,screen_y()+4)~=0 then
       spr(7,56,FLOOR+15,0,1,2)
       spr(8,64,FLOOR+15,0,1,2)
@@ -88,8 +90,8 @@ function render_enemies()
          spr(2,x[2],89,0,1,1,0,1,2)
       end
    end
---Renders Gators	
-			if mget(screen_x()+9,screen_y()+4)~=0 then
+--Renders Gators  
+         if mget(screen_x()+9,screen_y()+4)~=0 then
       if t%250<125 then
          spr(4,80,FLOOR+8,0)
          spr(4,116,FLOOR+8,0)
@@ -133,10 +135,10 @@ function collision()
    for log,x in pairs(logs) do
       if p.x>=x[2]-4 and p.x<=x[2]+8 and p.y>FLOOR-1 then
          score=score-4
-							--1 is moving logs. Player cannot move while stuck
+                     --1 is moving logs. Player cannot move while stuck
          if x[1]==1 then
             p.s='stuck'
-							--0 is stationary logs. Player cannot jump while grounded
+                     --0 is stationary logs. Player cannot jump while grounded
          elseif x[1]==0 then
             p.s='ground'
          end
@@ -159,7 +161,7 @@ function collision()
       end
     end
 --Collision with pits. Fall is like stuck, but the player
---moves downwards		
+--moves downwards    
    if p.y<=FLOOR and p.y>=FLOOR-1 and
      (mget((p.x/8)+screen_x(),screen_y()+2)==14 or
       mget((p.x/8)+screen_x(),screen_y()+2)==30 or
@@ -170,7 +172,7 @@ function collision()
    elseif p.s=='fall' and p.y>=TUNNEL then
       p.s='walk'
    end
-	
+
 end
 
 
@@ -205,7 +207,7 @@ function ground()
       else
          return FLOOR+8
       end
-	--elseif player in tunnel
+   --elseif player in tunnel
    elseif p.s=='fall' or p.y>FLOOR+8 then
       return TUNNEL
    else
@@ -228,34 +230,40 @@ end
 function physics()
 --Gravity physics
  --if player state is fall, 
-	--do no other physics besides moving them down
+   --do no other physics besides moving them down
    if p.s=='fall' then
       p.y=p.y+1
+   elseif p.s == 'climb' then
+      if p.s=='upright' and wall(1) then
+      p.x=p.x+SPEED
+   elseif p.s=='upleft' and wall(-1) then
+      p.x=p.x-SPEED
+   end
    else
-			local temp_ground=ground()
-			 --move player's y by a percent
-				--of their vertical velocity
+         local temp_ground=ground()
+          --move player's y by a percent
+            --of their vertical velocity
       p.y=p.y-(p.v/10)
-				--if player is below ground (ie. touching ground)
+            --if player is below ground (ie. touching ground)
       if p.y>temp_ground then
-						 --apply an equal and opposite force
+                   --apply an equal and opposite force
          p.y=p.y+(p.v/10)
-							--increase velocity by gravity
+                     --increase velocity by gravity
          p.v=p.v+(5/10)
-         if p.s~='fall' then p.s='walk'	end
+         if p.s~='fall' then p.s='walk'   end
       end
-						--decrease velocity by gravity
+                  --decrease velocity by gravity
       p.v=p.v-(5/10)
-				--Max to player downward velocity
+            --Max to player downward velocity
       if p.v<-16 then p.v=-16 end
-   end	
+   end   
  --Jumping continues movement
    if p.s=='upright' and wall(1) then
       p.x=p.x+SPEED
    elseif p.s=='upleft' and wall(-1) then
       p.x=p.x-SPEED
    end
---Changing Screens			
+--Changing Screens         
    if p.x>234 then
       p.x=4
       if ground()==TUNNEL then
@@ -273,7 +281,7 @@ function physics()
       if screen<0 then screen=63 end
       load_screen()
    end
---Moves logs			
+--Moves logs         
    if t%1==0 then
       for log,x in pairs(logs) do
          if x[1]==1 then
@@ -282,6 +290,7 @@ function physics()
          end
       end
    end
+
 end
 
 
@@ -305,6 +314,8 @@ function input()
       elseif keyp(48) then
          p.s='up'
          p.v=10
+      elseif p.x >= (ladderPos-2.5) and p.x <= (ladderPos+2.5) then
+         p.s = 'climb'
       end
  --ground allows just jumping
    elseif p.s=='ground' then
@@ -313,8 +324,41 @@ function input()
       elseif btn(3) and wall(1) then
          p.x=p.x+SPEED
       end
+   else if p.s == 'climb' then
+      if btn(0) then
+         if p.y >= FLOOR then
+            p.y = p.y-1
+         end
+      elseif btn(1) then
+         if p.y <= TUNNEL then
+            p.y = p.y+1
+         end
+      elseif btn(2) then
+         if p.y <= 82 then
+            p.s = 'upleft'
+            p.v = 10
+         else
+            p.x=p.x-1
+         end
+         if p.x <= (ladderPos-2.5) or p.x >= (ladderPos+2.5) then
+            p.s = 'fall'
+         end
+      elseif btn(3) then
+         if p.y <= 82 then
+            p.s = 'upright'
+            p.v = 10
+         else
+            p.x=p.x+1
+         end
+         if p.x <= (ladderPos-2.5) or p.x >= (ladderPos+2.5) then
+            p.s = 'fall'
+         end
+      end
    end
 end
+end
+
+
 
 
 --When a screen is changed, loads all the data
@@ -322,26 +366,28 @@ end
 function load_screen()
  --reset logs, then put logs into logs{}
    logs={}
+   ladderPos = -1
    for i=1,29 do
       if mget(i+screen_x(),screen_y()+1)==2 then
          table.insert(logs, {1,i*8})
       elseif mget(i+screen_x(),screen_y()+1)==18 then
          table.insert(logs, {0,i*8})
       end
-				--load pits
+            --load pits
       pitwalllad=mget(i+screen_x(),screen_y()+2)
       if pitwalllad==14 or
         pitwalllad==30 then
          mset(i+screen_x(),screen_y()+11,14)
          mset(i+screen_x(),screen_y()+12,30)
-				--load ladders
+            --load ladders
       elseif pitwalllad==37 then
          mset(i+screen_x(),screen_y()+11,14)
          mset(i+screen_x(),screen_y()+12,30)
          mset(i+screen_x(),screen_y()+13,37)
          mset(i+screen_x(),screen_y()+14,37)
          mset(i+screen_x(),screen_y()+15,37)
-				--load walls
+         ladderPos = i*8
+            --load walls
       elseif pitwalllad==36 then
          mset(i+screen_x(),screen_y()+13,36)
          mset(i+screen_x(),screen_y()+14,36)
@@ -378,5 +424,5 @@ function TIC()
    render()
    collision()
    physics()
-   input()	
+   input()  
 end
